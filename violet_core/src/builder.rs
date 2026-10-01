@@ -2,7 +2,7 @@ use crate::audio_input::AudioInput;
 use crate::audio_output::AudioOutput;
 use crate::renderer::Renderer;
 use crate::sample_processor::SampleProcessor;
-use crate::source_interpreter::SourceInterpreter;
+use crate::source_interpreter::{ErasedStorage, SourceInterpreter};
 use crate::spatial_input::SpatialInput;
 use crate::{audio_input_socket::AudioInputSocket, audio_output_socket::AudioOutputSocket};
 
@@ -105,8 +105,7 @@ where
         let audio_output = self.audio_output.ok_or(MISSING_AUDIO_OUTPUT)?;
         let count = audio_input.channel_count();
         let len = interpreter.interpretation_length();
-        let interpretations =
-            vec![Interpreter::Interpretation::default(); count * len].into_boxed_slice();
+        let interpretations = ErasedStorage::new::<Interpreter::Interpretation>(count, len);
         Ok(Renderer {
             interpreter,
             processor,

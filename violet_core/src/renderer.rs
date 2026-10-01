@@ -1,5 +1,6 @@
 use crate::audio_input::AudioInput;
 use crate::audio_output::AudioOutput;
+use crate::source_interpreter::{ErasedStorage, GetInterpretation};
 use crate::spatial_input::SpatialInput;
 use crate::{
     SampleProcessor, SourceInterpreter, audio_input_socket::AudioInputSocket,
@@ -24,7 +25,7 @@ where
     pub(crate) audio_input: AudioInputSocket<AudioIn>,
     pub(crate) spatial_input: SpatialIn,
     pub(crate) audio_output: AudioOutputSocket<AudioOut>,
-    pub(crate) interpretations: Box<[Interpreter::Interpretation]>,
+    pub(crate) interpretations: ErasedStorage,
 }
 
 impl<Interpreter, Processor, AudioIn, SpatialIn, AudioOut>
@@ -38,7 +39,12 @@ where
 {
     fn interpret_sources(&mut self, frame: usize) {
         let length = self.interpreter.interpretation_length();
-        for (source, result) in self.interpretations.chunks_exact_mut(length).enumerate() {
+        for (source, result) in self
+            .interpretations
+            .get_slice_mut()
+            .chunks_exact_mut(length)
+            .enumerate()
+        {
             let source = self.spatial_input.source(source, frame);
             self.interpreter.interpret_source(&source, result);
         }
@@ -46,7 +52,12 @@ where
     fn process_samples(&mut self, frame: usize) {
         self.set_frame(frame);
         let length = self.interpreter.interpretation_length();
-        for (channel, interpretation) in self.interpretations.chunks_exact(length).enumerate() {
+        for (channel, interpretation) in self
+            .interpretations
+            .get_slice()
+            .chunks_exact(length)
+            .enumerate()
+        {
             self.audio_input.channel = channel;
             self.processor.process_samples(
                 interpretation,
@@ -183,10 +194,10 @@ where
     }
     /// Returns an immutable reference to the inner slice of calculated interpretations.
     pub fn interpretations(&self) -> &[Interpreter::Interpretation] {
-        &self.interpretations
+        &self.interpretations.get_slice()
     }
     /// Returns a mutable reference to the inner slice of calculated interpretations.
-    pub fn interpretations_mut(&mut self) -> &mut Box<[Interpreter::Interpretation]> {
-        &mut self.interpretations
+    pub fn interpretations_mut(&mut self) -> &mut [Interpreter::Interpretation] {
+        self.interpretations.get_slice_mut()
     }
 }
